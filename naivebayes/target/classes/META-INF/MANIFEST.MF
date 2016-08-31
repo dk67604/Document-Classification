@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Built-By: dharamendra
+Build-Jdk: 1.8.0_101
+Main-Class: com.uga.datascience.naivebayes.App
+Created-By: Maven Integration for Eclipse
+
