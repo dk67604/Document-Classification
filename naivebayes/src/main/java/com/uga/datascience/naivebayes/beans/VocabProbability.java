@@ -10,6 +10,7 @@ public class VocabProbability implements Serializable{
 	private double probabilityECAT;
 	private double probabilityGCAT;
 	private double probabilityMCAT;
+	private long uniqueWordId;
 	
 	public String getUniqueWord() {
 		return uniqueWord;
@@ -41,11 +42,18 @@ public class VocabProbability implements Serializable{
 	public void setProbabilityMCAT(double probabilityMCAT) {
 		this.probabilityMCAT = probabilityMCAT;
 	}
+
+	public long getUniqueWordId() {
+		return uniqueWordId;
+	}
+	public void setUniqueWordId(long uniqueWordId) {
+		this.uniqueWordId = uniqueWordId;
+	}
 	@Override
 	public String toString() {
 		return "VocabProbability [uniqueWord=" + uniqueWord + ", probabilityCCAT=" + probabilityCCAT
 				+ ", probabilityECAT=" + probabilityECAT + ", probabilityGCAT=" + probabilityGCAT + ", probabilityMCAT="
-				+ probabilityMCAT + "]";
+				+ probabilityMCAT + ", uniqueWordId=" + uniqueWordId + "]";
 	}
 	
 	

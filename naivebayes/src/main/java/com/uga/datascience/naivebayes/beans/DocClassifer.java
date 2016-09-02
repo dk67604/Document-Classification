@@ -22,6 +22,10 @@ public class DocClassifer implements Serializable {
 	}
 	public void setLabel(String label) {
 		this.label = label;
+	}
+	@Override
+	public String toString() {
+		return "DocClassifer [docId=" + docId + ", label=" + label + "]";
 	}	
     
     

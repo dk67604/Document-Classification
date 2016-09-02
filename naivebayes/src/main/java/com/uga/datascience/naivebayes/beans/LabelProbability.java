@@ -4,6 +4,10 @@ import java.io.Serializable;
 
 public class LabelProbability implements Serializable {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5657545931598489869L;
 	private double ccatLabelProb;
 	private double ecatLabelProb;
 	private double mcatLabelProb;

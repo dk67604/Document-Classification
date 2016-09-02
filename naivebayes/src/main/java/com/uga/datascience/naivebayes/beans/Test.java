@@ -1,11 +1,12 @@
 package com.uga.datascience.naivebayes.beans;
 
-import java.math.BigDecimal;
-
 public class Test {
 	public static void main(String[] args){
-		 double wordUnderLabelProb= (Double.valueOf(6)+1)/(8+1000);
-		 System.out.println(wordUnderLabelProb);
+	double d=	Math.log((Double.valueOf(3)/5));
+	System.out.println(d);
+String tets="months august  billions  unless specified revenues trln  trln operating  current        note - jusco   major supermarket chain";
+String rr=tets.replaceAll(" +", " ");
+System.out.println(rr);
 	}
-
 }
+
