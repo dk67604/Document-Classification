@@ -45,7 +45,7 @@
 		<finalName>naivebayes</finalName>
 		<resources>
 			<resource>
-				<directory>/resources</directory>
+				<directory>src/resources</directory>
 			</resource>
 		</resources>
 		<plugins>
