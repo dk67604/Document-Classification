@@ -1,6 +1,22 @@
+/*
+ * This is main class for Document Classification. 
+ * The program works in two different modes (LEARNING and TESTING) that are specified during the execution of the program though command line arguments.
+LEARNING:-takes 4 command line arguments:-
+args[0]- path of the trainer file
+args[1]- path of the classifer file (Classifed lables)
+args[2]- path to store the vocab probability file
+args[3]- path to store the lable probability file
+args[4]- LEARNING 
+
+TESTING:-takes 4 command line arguments:- 
+args[0]- path of the test file
+args[1]- path of vocab probablity file that was generated using the LEARNING mode
+args[2]- path of lable probablity file that was generated using the LEARNING mode
+args[3]- path to store the final file that contains the classification for every document
+args[4]- TESTING
+ */
 package com.uga.datascience.naivebayes;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -30,62 +46,92 @@ import com.uga.datascience.naivebayes.beans.WordCount;
 
 import scala.Tuple2;
 
+
+// TODO: Auto-generated Javadoc
 /**
- * Hello world!
- *
+ * The Class App.
  */
 public class App {
+	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 * @throws Exception the exception
+	 */
 	public static void main(String[] args) throws Exception {
-		System.out.println("Hello World!");
-        System.setProperty("hadoop.home.dir", "C:\\winutils-master\\hadoop-2.7.1");
+		// Setting of Spark Configuration
+		//System.setProperty("hadoop.home.dir", "C:\\winutils-master\\hadoop-2.7.1");
      	SparkConf conf = new SparkConf().setAppName("App").setMaster("local").set("spark.sql.warehouse.dir", "/spark-warehouse");
 		SparkContext ctx=new SparkContext(conf);
-		SparkSession sparkSession=SparkSession.builder().appName("Naive Bayes").config(conf).getOrCreate();
+		SparkSession sparkSession=SparkSession.builder().appName("NaiveBayes").config(conf).getOrCreate();
 		SQLContext sqlCtx=sparkSession.sqlContext();
+		// Accumulator for Unique Word and Document Count
 		LongAccumulator documentCount=ctx.longAccumulator();
 		LongAccumulator vocabuloryCount=ctx.longAccumulator();
+	//Pre=Processing of Documents	
 		JavaRDD<String> textfile = sparkSession.read().textFile(args[0]).javaRDD();
 		Properties prop = Utilities.loadStopWords("stopwords.properties");
 		String stop = prop.getProperty("stopwords");	
 		Pattern stopwordsPattern = Pattern.compile("\\b(" + stop + ")\\b\\s?", Pattern.CASE_INSENSITIVE);
+		String stop1 = prop.getProperty("stopwords1");	
+		Pattern stopwordsPattern1 = Pattern.compile("\\b("+stop1 +")\\b\\s?", Pattern.CASE_INSENSITIVE);
+		System.out.println(stop);
 		JavaRDD<String> rddY = textfile.map(new Function<String, String>() {
 			private static final long serialVersionUID = -7726978724451251690L;
 
 			@Override
 			public String call(String string) throws Exception {
 			String temp = string.toLowerCase().replaceAll(" +", " ");
-			String removeSpecial=temp.replaceAll("&(quot;)","").replaceAll("&(amps)", "").replaceAll("[:;,.+/{}()&$*%'?]", "").replaceAll("\\b\\d{1,9}\\b\\s?","").replaceAll("\\b\\w{1,3}\\b","").trim();
+			String removeSpecial=temp.replaceAll("&(quot;)","").replaceAll("&(amps)", "").replaceAll("[:;,.+/{}()&$*%'?=!]", "").replaceAll("\\b\\d{1,9}\\b\\s?","").replaceAll("\\b\\w{1,3}\\b","").trim();
 			Matcher m = stopwordsPattern.matcher(removeSpecial);
 			String processedText = m.replaceAll(" ");
 			
 			String removeHyphen=processedText.replaceAll("-{1,2}", " ").replaceAll(" +", " ").trim();
-			
-		//	System.out.println(removeHyphen);
-			return removeHyphen;
+			String document=removeHyphen.replaceAll("\\w*\\d\\w*", "").trim();
+			return document;
 			}
 
 		});
-		//rddY.saveAsTextFile("C:\\Users\\dhara\\Downloads\\DataScience\\preprocess.txt");
+		
+		JavaRDD<String> rddF = rddY.map(new Function<String, String>() {
+			private static final long serialVersionUID = -7726978724451251690L;
+
+			@Override
+			public String call(String string) throws Exception {
+				Matcher m = stopwordsPattern1.matcher(string);
+				String processedText = m.replaceAll("");
+				return processedText;	
+			}
+
+		});
+// Pre-Processing Documents ends
+		
 		Utilities ut=new Utilities();
-		JavaPairRDD<Integer, String> linePair=ut.makeLinePair(rddY);
+		JavaPairRDD<Long, String> linePair=ut.makeLinePair(rddY);
 		long docCount=linePair.count();
 		documentCount.add(linePair.count());
-		
+// Choose of action i.e LERANING/TESTING
+		System.out.println("Execution Mode:"+args[4]);
 		switch (args[4]) {
 		case "LEARNING":
+			// LEARNING Starting
+			System.out.println("LEARNING Starts");
+			// Building Unique Words from training data set	
+			JavaRDD<String> uniqueVocab=Utilities.buildVocabulary(rddF); 
 			
-			JavaRDD<String> uniqueVocab=Utilities.buildVocabulary(rddY);
 			vocabuloryCount.add(uniqueVocab.count());
-		    JavaRDD<String> labelFile = sparkSession.read().textFile(args[1]).javaRDD();
-		    JavaRDD<String[]> filteredLabelFile=Utilities.getlable(labelFile);
-		    JavaPairRDD<Integer, String[]> pairedLabel=ut.makeLabelPair(filteredLabelFile);
-		    JavaPairRDD<Integer, Tuple2<String, String[]>> docClasificationPair=linePair.join(pairedLabel);
-		    JavaPairRDD<Integer, Tuple2<String, String[]>> sortedDocClasificationPair=docClasificationPair.sortByKey();
-		   
-		    JavaRDD<DocClassifierPair> docClasfierPairRDD=sortedDocClasificationPair.map(new Function<Tuple2<Integer,Tuple2<String,String[]>>, DocClassifierPair>() {
+		//Reading Training Label File
+			JavaRDD<String> labelFile = sparkSession.read().textFile(args[1]).javaRDD();
+	 // Pairing of Training Document and Labels	    
+			JavaRDD<String[]> filteredLabelFile=Utilities.getlable(labelFile);
+		    JavaPairRDD<Long, String[]> pairedLabel=ut.makeLabelPair(filteredLabelFile);
+		 
+		    JavaPairRDD<Long, Tuple2<String, String[]>> docClasificationPair=linePair.join(pairedLabel);	   
+		    JavaRDD<DocClassifierPair> docClasfierPairRDD=docClasificationPair.map(new Function<Tuple2<Long,Tuple2<String,String[]>>, DocClassifierPair>() {
 				private static final long serialVersionUID = 6694664017226133614L;
 				@Override
-				public DocClassifierPair call(Tuple2<Integer, Tuple2<String, String[]>> input) throws Exception {
+				public DocClassifierPair call(Tuple2<Long, Tuple2<String, String[]>> input) throws Exception {
 							  
 					DocClassifierPair docClasf=new DocClassifierPair();
 						   docClasf.setDocId(String.valueOf(input._1()));
@@ -113,8 +159,91 @@ public class App {
 			});
 		    
 			Dataset<Row> docClasfierPairDF=sparkSession.createDataFrame(docClasfierPairRDD, DocClassifierPair.class);
-			List<Tuple2<Integer, Tuple2<String, String[]>>> sortedCollectionList=sortedDocClasificationPair.collect();
-			docClasfierPairDF.createOrReplaceTempView("docClasfierPairDF");
+			docClasfierPairDF.createOrReplaceTempView("docClasfierPairDF"); // DataFrame View
+			int LIMIT=350000;
+		    long sortedCount=docClasificationPair.count();
+		    boolean sortedFlag=false;
+		    // Code to handle large size of file, using Spark Filter data has been split into partition
+		    if(sortedCount>LIMIT){
+		    JavaPairRDD<Long, Tuple2<String, String[]>> rddFilter1=docClasificationPair.filter(new Function<Tuple2<Long,Tuple2<String,String[]>>, Boolean>() {
+
+				private static final long serialVersionUID = -8348253772023530419L;
+
+				@Override
+				public Boolean call(Tuple2<Long, Tuple2<String, String[]>> arg0) throws Exception {
+					// TODO Auto-generated method stub
+					return arg0._1().longValue()>=1 &&arg0._1().longValue()<=LIMIT;
+				}
+			});
+		    JavaPairRDD<Long, Tuple2<String, String[]>> rddFilter2=docClasificationPair.filter(new Function<Tuple2<Long,Tuple2<String,String[]>>, Boolean>() {
+				private static final long serialVersionUID = -3293638219587414715L;
+
+				@Override
+				public Boolean call(Tuple2<Long, Tuple2<String, String[]>> arg0) throws Exception {
+					// TODO Auto-generated method stub
+					return arg0._1().longValue()>LIMIT &&arg0._1().longValue()<=sortedCount;
+				}
+			});
+		    
+		    System.out.println("Entered sortedFlag Partition");
+	    	
+	    	List<Tuple2<Long, Tuple2<String, String[]>>> sortedCollectionList1=rddFilter1.collect();
+	    	System.out.println("sortedCollectionList1"+sortedCollectionList1.size());
+	        List<Tuple2<Long, Tuple2<String, String[]>>> sortedCollectionList2=rddFilter2.collect();
+	        System.out.println("sortedCollectionList2"+sortedCollectionList2.size());
+	        JavaRDD<List<WordCount>> wordCountRDD1=uniqueVocab.map(new Function<String, List<WordCount>>() {
+					private static final long serialVersionUID = 7201909674505781255L;
+
+					@Override
+					public List<WordCount> call(String line) throws Exception {
+						
+						List<WordCount> wordCountList=ut.getWordCountList(line, sortedCollectionList1);
+						return wordCountList;
+					}
+				});
+	    	 JavaRDD<List<WordCount>> wordCountRDD2=uniqueVocab.map(new Function<String, List<WordCount>>() {
+					private static final long serialVersionUID = 7201909674505781255L;
+
+					@Override
+					public List<WordCount> call(String line) throws Exception {
+						
+						List<WordCount> wordCountList=ut.getWordCountList(line, sortedCollectionList2);
+						return wordCountList;
+					}
+				});
+
+				JavaRDD<WordCount> temp1= wordCountRDD1.flatMap(new FlatMapFunction<List<WordCount>, WordCount>() {
+
+						private static final long serialVersionUID = -8395782926696124478L;
+
+						@Override
+						public Iterator<WordCount> call(List<WordCount> input) throws Exception {
+							return input.iterator();
+						}
+					});
+				JavaRDD<WordCount> temp2= wordCountRDD2.flatMap(new FlatMapFunction<List<WordCount>, WordCount>() {
+
+					private static final long serialVersionUID = -8395782926696124478L;
+
+					@Override
+					public Iterator<WordCount> call(List<WordCount> input) throws Exception {
+						return input.iterator();
+					}
+				});
+		
+				JavaRDD<WordCount> temp=temp1.union(temp2);
+				System.out.println("temp: "+temp.count());
+				Dataset<Row> wordCountDF=sparkSession.createDataFrame(temp, WordCount.class);
+				wordCountDF.createOrReplaceTempView("wordCountView");
+				 sortedFlag=true;
+		    
+		   }
+		    
+		    
+		    if(!sortedFlag){
+		    	System.out.println("Document Range in Limit");
+			List<Tuple2<Long, Tuple2<String, String[]>>> sortedCollectionList=docClasificationPair.collect();
+			
 		    JavaRDD<List<WordCount>> wordCountRDD=uniqueVocab.map(new Function<String, List<WordCount>>() {
 				private static final long serialVersionUID = 7201909674505781255L;
 
@@ -125,7 +254,7 @@ public class App {
 					return wordCountList;
 				}
 			});
-			//wordCountRDD.saveAsTextFile("C:\\Users\\dhara\\Downloads\\DataScience\\wordCount.txt");
+			;
 			JavaRDD<WordCount> temp= wordCountRDD.flatMap(new FlatMapFunction<List<WordCount>, WordCount>() {
 
 					private static final long serialVersionUID = -8395782926696124478L;
@@ -137,9 +266,9 @@ public class App {
 				});
 
 			Dataset<Row> wordCountDF=sparkSession.createDataFrame(temp, WordCount.class);
-			wordCountDF.createOrReplaceTempView("wordCountView");
-
-			
+			wordCountDF.createOrReplaceTempView("wordCountView"); // DataFrame 
+		    }
+		    //Code for calculation for number of unique words occurrence under respective classification in each document
 			Dataset<Row> ccatWordsDF=ccatWords(sqlCtx, sparkSession);
 			Dataset<Row> ecatWordsDF=ecatWords(sqlCtx, sparkSession);
 			Dataset<Row> gcatWordsDF=gcatWords(sqlCtx, sparkSession);
@@ -189,7 +318,7 @@ public class App {
 				}
 			});
 			parsedVocabProb.saveAsTextFile(args[2]);
-			
+			//Code for Calculation of Label Probability i.e number of each classification in training file.
 			long calculateCCATCount=calculateCCATCount(sqlCtx, sparkSession);
 			long calculateECATCount=calculateECATCount(sqlCtx, sparkSession);
 			long calculateMCATCount=calculateMCATCount(sqlCtx, sparkSession);
@@ -198,7 +327,8 @@ public class App {
 	            System.out.println("ecatWordsDFCount"+calculateECATCount);
 	            System.out.println("mcatWordsDFCount"+calculateMCATCount);
 	            System.out.println("gcatWordsDFCount"+calculateGCATCount);
-			LabelProbability labelProb=ut.calculateLabelProbability(docCount, calculateCCATCount, calculateECATCount,
+			
+	        LabelProbability labelProb=ut.calculateLabelProbability(docCount, calculateCCATCount, calculateECATCount,
 					calculateMCATCount, calculateGCATCount);
 			Encoder<LabelProbability> labelProbEncoder = Encoders.bean(LabelProbability.class);
 			Dataset<LabelProbability> labelProbDS = sparkSession.createDataset(
@@ -216,10 +346,14 @@ public class App {
 			
 			});
 			parsedLabelProbs.saveAsTextFile(args[3]);
+			
+			// End of Learning
+			System.out.println("Learning ended succesfully, ready for testing data set");
 				break;
   
 	case "TESTING":
-			final long THERSHOLD=400000;
+		    System.out.println("TESTING starts");
+			final long THERSHOLD=750000;
 			boolean flag=false;
 			
 			JavaRDD<VocabProbability> vocabProb=sparkSession.read().textFile(args[1]).
@@ -239,8 +373,6 @@ public class App {
 					return vocabProb;
 				}
 			});
-		//	List<VocabProbability> uniquevocabProbability=vocabProb.collect();
-			//System.out.println(uniquevocabProbability.get(10).toString());
 			JavaRDD<LabelProbability> labelProbabilities=sparkSession.read().textFile(args[2]).
 					javaRDD().map(new Function<String, LabelProbability>() {
 
@@ -261,6 +393,7 @@ public class App {
 			Dataset<Row> vocabProbDF=sparkSession.createDataFrame(vocabProb, VocabProbability.class);
 			
 			vocabProbDF.createOrReplaceTempView("testingVocabProbDFView");
+			//Code for handling large testing data set
 			long vocabProbDFCount =vocabProbDF.count();
 			if(vocabProbDFCount<THERSHOLD){
 				flag=true;
@@ -268,20 +401,18 @@ public class App {
 			if(flag){
 				
 				Dataset<Row> partition=createPartion(sqlCtx, sparkSession, 1, vocabProbDFCount);
-				partition.show();
 				List<Row> uniqueVocabPartition=partition.collectAsList();
-				JavaRDD<DocClassifer> docClassfierRDD=linePair.map(new Function<Tuple2<Integer,String>, DocClassifer>() {
+				JavaRDD<DocClassifer> docClassfierRDD=linePair.map(new Function<Tuple2<Long,String>, DocClassifer>() {
 
 					private static final long serialVersionUID = -4645083522263678220L;
 
 					@Override
-					public DocClassifer call(Tuple2<Integer, String> document) throws Exception {
+					public DocClassifer call(Tuple2<Long, String> document) throws Exception {
 					  DocClassifer docClassifier=new DocClassifer();
 					  docClassifier=ut.getDocClassification(document,uniqueVocabPartition, listLabelProb);
 						return docClassifier;
 					}
 				});
-			//	System.out.println("jj:"+docClassfierRDD.count());
 				docClassfierRDD.saveAsTextFile(args[3]);
 				flag=true;
 			}
@@ -291,12 +422,12 @@ public class App {
 				Dataset<Row> partition2=createPartion(sqlCtx, sparkSession, THERSHOLD+1, vocabProbDFCount);
 				List<Row> uniqueVocabPartition1=partition1.collectAsList();
 				List<Row> uniqueVocabPartition2=partition2.collectAsList();
-				JavaRDD<DocClassifer> docClassfierRDD1=linePair.map(new Function<Tuple2<Integer,String>, DocClassifer>() {
+				JavaRDD<DocClassifer> docClassfierRDD1=linePair.map(new Function<Tuple2<Long,String>, DocClassifer>() {
 
 					private static final long serialVersionUID = -4645083522263678220L;
 
 					@Override
-					public DocClassifer call(Tuple2<Integer, String> document) throws Exception {
+					public DocClassifer call(Tuple2<Long, String> document) throws Exception {
 					  DocClassifer docClassifier=new DocClassifer();
 					  docClassifier=ut.getDocClassification(document,uniqueVocabPartition1,uniqueVocabPartition2, listLabelProb);
 						return docClassifier;
@@ -306,33 +437,74 @@ public class App {
 				docClassfierRDD1.saveAsTextFile(args[3]);
 				System.out.println("Partition done");
 			}
-			
+			//End of Testing 
+			System.out.println("Verify your accuracy of document classfication, stored at location: "+args[3]);
 			break;
 		default:
 			System.out.println("Please specify correct mode: 'LEARNING' or 'TESTING'");
 			break;
+
 		}
-		}
+		
 	
+
+	}
 	
-	
+	/**
+	 * Gets the CCAT sum.
+	 *
+	 * @param ctx the ctx
+	 * @param session the session
+	 * @return the CCAT sum
+	 */
 	public static Dataset<Row> getCCATSum(SQLContext ctx,SparkSession session){
 		Dataset<Row> sumFrequency=ctx.sql("SELECT SUM(frequencyCCAT) as sumFrequencyCCAT from ccatWordsDF");
 		return sumFrequency;
 	}
+	
+	/**
+	 * Gets the ECAT sum.
+	 *
+	 * @param ctx the ctx
+	 * @param session the session
+	 * @return the ECAT sum
+	 */
 	public static Dataset<Row> getECATSum(SQLContext ctx,SparkSession session){
 		Dataset<Row> sumFrequency=ctx.sql("SELECT SUM(frequencyECAT) as sumFrequencyECAT from ecatWordsDF");
 		return sumFrequency;
 	}
+	
+	/**
+	 * Gets the MCAT sum.
+	 *
+	 * @param ctx the ctx
+	 * @param session the session
+	 * @return the MCAT sum
+	 */
 	public static Dataset<Row> getMCATSum(SQLContext ctx,SparkSession session){
 		Dataset<Row> sumFrequency=ctx.sql("SELECT SUM(frequencyMCAT) as sumFrequencyMCAT from mcatWordsDF");
 		return sumFrequency;
 	}
+	
+	/**
+	 * Gets the GCAT sum.
+	 *
+	 * @param ctx the ctx
+	 * @param session the session
+	 * @return the GCAT sum
+	 */
 	public static Dataset<Row> getGCATSum(SQLContext ctx,SparkSession session){
 		Dataset<Row> sumFrequency=ctx.sql("SELECT SUM(frequencyGCAT) as sumFrequencyGCAT from gcatWordsDF");
 		return sumFrequency;
 	}
 	
+	/**
+	 * Ccat words.
+	 *
+	 * @param sqlCtx the sql ctx
+	 * @param session the session
+	 * @return the dataset
+	 */
 	public static Dataset<Row> ccatWords(SQLContext sqlCtx, SparkSession session){
 		Dataset<Row> ccatWordDF=sqlCtx.sql("SELECT SUM(a1.frequency) AS frequencyCCAT,a1.uniqueword FROM wordCountView a1 "
 				+ " WHERE (a1.label_1='CCAT' OR a1.label_2='CCAT' OR a1.label_3='CCAT' OR a1.label_4='CCAT') GROUP BY a1.uniqueword");
@@ -340,6 +512,13 @@ public class App {
 	     return ccatWordDF;
 	}
 	
+	/**
+	 * Ecat words.
+	 *
+	 * @param sqlCtx the sql ctx
+	 * @param session the session
+	 * @return the dataset
+	 */
 	public static Dataset<Row> ecatWords(SQLContext sqlCtx, SparkSession session){
 		Dataset<Row> ecatWordDF=sqlCtx.sql("SELECT SUM(a1.frequency) as frequencyECAT,a1.uniqueword FROM wordCountView a1"
 				+ " WHERE (a1.label_1='ECAT' OR a1.label_2='ECAT' OR a1.label_3='ECAT' OR a1.label_4='ECAT') GROUP BY a1.uniqueword");
@@ -348,6 +527,13 @@ public class App {
 	     return ecatWordDF;
 	}
 	
+	/**
+	 * Gcat words.
+	 *
+	 * @param sqlCtx the sql ctx
+	 * @param session the session
+	 * @return the dataset
+	 */
 	public static Dataset<Row> gcatWords(SQLContext sqlCtx, SparkSession session){
 		Dataset<Row> gcatWordDF=sqlCtx.sql("SELECT SUM(a1.frequency) as frequencyGCAT,a1.uniqueword FROM wordCountView a1"
 				+ " WHERE (a1.label_1='GCAT' OR a1.label_2='GCAT' OR a1.label_3='GCAT' OR a1.label_4='GCAT') GROUP BY a1.uniqueword");
@@ -355,6 +541,14 @@ public class App {
 	  
 	     return gcatWordDF;
 	}
+	
+	/**
+	 * Mcat words.
+	 *
+	 * @param sqlCtx the sql ctx
+	 * @param session the session
+	 * @return the dataset
+	 */
 	public static Dataset<Row> mcatWords(SQLContext sqlCtx, SparkSession session){
 		Dataset<Row> mcatWordDF=sqlCtx.sql("SELECT SUM(a1.frequency) as frequencyMCAT,a1.uniqueword FROM wordCountView a1"
 				+ " WHERE (a1.label_1='MCAT' OR a1.label_2='MCAT' OR a1.label_3='MCAT' OR a1.label_4='MCAT') GROUP BY a1.uniqueword");
@@ -364,25 +558,63 @@ public class App {
 	}
 	
    
-	 public static long calculateCCATCount(SQLContext sqlCtx, SparkSession sparkSession){
+	 /**
+ 	 * Calculate CCAT count.
+ 	 *
+ 	 * @param sqlCtx the sql ctx
+ 	 * @param sparkSession the spark session
+ 	 * @return the long
+ 	 */
+ 	public static long calculateCCATCount(SQLContext sqlCtx, SparkSession sparkSession){
 		 Dataset<Row> docId=sqlCtx.sql("SELECT docId FROM docClasfierPairDF where label_1='CCAT' or label_2='CCAT' or label_3='CCAT' or label_4='CCAT' ");
 	     return docId.count();
 	 }
 	 
-	 public static long calculateECATCount(SQLContext sqlCtx, SparkSession sparkSession){
+	 /**
+ 	 * Calculate ECAT count.
+ 	 *
+ 	 * @param sqlCtx the sql ctx
+ 	 * @param sparkSession the spark session
+ 	 * @return the long
+ 	 */
+ 	public static long calculateECATCount(SQLContext sqlCtx, SparkSession sparkSession){
 		 Dataset<Row> docId=sqlCtx.sql("SELECT docId FROM docClasfierPairDF where label_1='ECAT' or label_2='ECAT' or label_3='ECAT' or label_4='ECAT' ");
 	     return docId.count();
 	 }
 	 
-	 public static long calculateMCATCount(SQLContext sqlCtx, SparkSession sparkSession){
+	 /**
+ 	 * Calculate MCAT count.
+ 	 *
+ 	 * @param sqlCtx the sql ctx
+ 	 * @param sparkSession the spark session
+ 	 * @return the long
+ 	 */
+ 	public static long calculateMCATCount(SQLContext sqlCtx, SparkSession sparkSession){
 		 Dataset<Row> docId=sqlCtx.sql("SELECT docId FROM docClasfierPairDF where label_1='MCAT' or label_2='MCAT' or label_3='MCAT' or label_4='MCAT' ");
 	     return docId.count();
 	 }
-	 public static long calculateGCATCount(SQLContext sqlCtx, SparkSession sparkSession){
+	 
+ 	/**
+ 	 * Calculate GCAT count.
+ 	 *
+ 	 * @param sqlCtx the sql ctx
+ 	 * @param sparkSession the spark session
+ 	 * @return the long
+ 	 */
+ 	public static long calculateGCATCount(SQLContext sqlCtx, SparkSession sparkSession){
 		 Dataset<Row> docId=sqlCtx.sql("SELECT docId FROM docClasfierPairDF where label_1='GCAT' or label_2='GCAT' or label_3='GCAT' or label_4='GCAT' ");
 	     return docId.count();
 	 }
 	 
+ /**
+  * Creates the partion.
+  *
+  * @param sqlCtx the sql ctx
+  * @param sparkSession the spark session
+  * @param lowerlimt the lowerlimt
+  * @param upperlimit the upperlimit
+  * @return the dataset
+  */
  public static Dataset<Row> createPartion(SQLContext sqlCtx,SparkSession sparkSession,long lowerlimt,long upperlimit){
 		Dataset<Row> partioned=sqlCtx.sql("SELECT a.uniqueWord,a.probabilityCCAT,a.probabilityECAT,a.probabilityMCAT,a.probabilityGCAT FROM testingVocabProbDFView a where a.uniqueWordId BETWEEN "+lowerlimt +" AND " +upperlimit);
 		return partioned;
