@@ -23,26 +23,64 @@ import com.uga.datascience.naivebayes.beans.WordCount;
 
 import scala.Tuple2;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class Utilities.
+ */
 public class Utilities implements Serializable {
-	/**
-	 * 
-	 */
+	
+	/** The Constant serialVersionUID. */
 	private static final long serialVersionUID = -2555370253381427028L;
-	private  int k=0;
-	private  int j=0;
+	
+	/** The k. */
+	private  long k=0;
+	
+	/** The j. */
+	private  long j=0;
+	
+	/** The word count. */
 	WordCount wordCount=null;
+	
+	/** The vocab probability. */
 	VocabProbability vocabProbability=null;
+	
+	/** The label prob. */
 	LabelProbability labelProb=null;
+	
+	/** The doc classifier. */
 	DocClassifer docClassifier=null;
+	
+	/** The probability CCAT. */
 	double  probabilityCCAT=0.0;
-	  double probabilityECAT=0.0;
+	  
+  	/** The probability ECAT. */
+  	double probabilityECAT=0.0;
+		
+		/** The probability MCAT. */
 		double probabilityMCAT=0.0;
-		 double probabilityGCAT=0.0;
-		 double[] probabilities=new double[4];
+		 
+ 		/** The probability GCAT. */
+ 		double probabilityGCAT=0.0;
+		 
+ 		/** The probabilities. */
+ 		double[] probabilities=new double[4];
 
+	/** The label. */
 	String label=null;
-	 double unknownWordProb=.0000000001;
-	 int maxPosition=0;
+	 
+ 	/** The unknown word prob. */
+ 	double unknownWordProb=.0000000001;
+	 
+ 	/** The max position. */
+ 	int maxPosition=0;
+	
+	/**
+	 * Load stop words.
+	 *
+	 * @param propertiesFileName the properties file name
+	 * @return the properties
+	 * @throws Exception the exception
+	 */
 	public static Properties loadStopWords(String propertiesFileName) throws Exception{
 		Properties prop=new Properties();
 		InputStream inputStream=Utilities.class.getResourceAsStream(propertiesFileName);
@@ -54,42 +92,53 @@ public class Utilities implements Serializable {
 		return prop;
 	}
 
-	public  JavaPairRDD<Integer, String> makeLinePair(JavaRDD<String> filteredFile){
-	//	Utilities.k=0;
-		PairFunction<String, Integer, String> keyData=new PairFunction<String, Integer, String>() {
+	/**
+	 * Make line pair.
+	 *
+	 * @param filteredFile the filtered file
+	 * @return the java pair RDD
+	 */
+	public  JavaPairRDD<Long, String> makeLinePair(JavaRDD<String> filteredFile){
+		PairFunction<String, Long, String> keyData=new PairFunction<String, Long, String>() {
 			private static final long serialVersionUID = -705423303484558872L;
 
 			@Override
-			public Tuple2<Integer, String> call(String fileteredLine) throws Exception {
-			//System.out.println(k);
-				return new Tuple2<Integer, String>(++k,fileteredLine);
-				
+			public Tuple2<Long, String> call(String fileteredLine) throws Exception {
+				return new Tuple2<Long, String>(++k,fileteredLine);	
 			}
 		};
-		
-		JavaPairRDD<Integer, String> linePair=filteredFile.mapToPair(keyData);
-		
+		JavaPairRDD<Long, String> linePair=filteredFile.mapToPair(keyData);
 		return linePair;
 	}
 	
-	public  JavaPairRDD<Integer, String[]> makeLabelPair(JavaRDD<String[]> filteredLabel){
-		//Utilities.j=0;
-		PairFunction<String[], Integer, String[]> keyData=new PairFunction<String[], Integer, String[]>() {
+	/**
+	 * Make label pair.
+	 *
+	 * @param filteredLabel the filtered label
+	 * @return the java pair RDD
+	 */
+	public  JavaPairRDD<Long, String[]> makeLabelPair(JavaRDD<String[]> filteredLabel){
+		PairFunction<String[], Long, String[]> keyData=new PairFunction<String[], Long, String[]>() {
 			
 			private static final long serialVersionUID = 7313896833000330630L;
 
 			@Override
-			public Tuple2<Integer, String[]> call(String[] fileteredLine) throws Exception {
+			public Tuple2<Long, String[]> call(String[] fileteredLine) throws Exception {
 			
-				return new Tuple2<Integer, String[]>(++j,fileteredLine);
+				return new Tuple2<Long, String[]>(++j,fileteredLine);
 				
 			}
 		};
-		
-		JavaPairRDD<Integer, String[]> linePair=filteredLabel.mapToPair(keyData);
+		JavaPairRDD<Long, String[]> linePair=filteredLabel.mapToPair(keyData);
 		return linePair;
 	}
 	
+	/**
+	 * Builds the vocabulary.
+	 *
+	 * @param filterdFile the filterd file
+	 * @return the java RDD
+	 */
 	public static JavaRDD<String> buildVocabulary(JavaRDD<String> filterdFile){
 		JavaRDD<String> vocab=filterdFile.flatMap(new FlatMapFunction<String, String>() {
 			private static final long serialVersionUID = -275891577642674322L;
@@ -106,6 +155,12 @@ public class Utilities implements Serializable {
 		return uniqueVocab;
 	}
 	
+	/**
+	 * Gets the lable.
+	 *
+	 * @param labelFile the label file
+	 * @return the lable
+	 */
 	public static JavaRDD<String[]> getlable(JavaRDD<String> labelFile){
 		JavaRDD<String[]> label = labelFile.map(new Function<String, String[]>() {
 		private static final long serialVersionUID = 1L;
@@ -125,6 +180,13 @@ public class Utilities implements Serializable {
 		});
 		return label;
 		}
+   
+   /**
+    * Gets the lablel prob view.
+    *
+    * @param list the list
+    * @return the lablel prob view
+    */
    public List<DocClassifer> getLablelProbView(List<Tuple2<Integer, Tuple2<String, String[]>>> list){
 	List<DocClassifer> docClassifierList=new ArrayList<DocClassifer>();
 	   for(Tuple2<Integer, Tuple2<String, String[]>> tuple:list){
@@ -141,10 +203,18 @@ public class Utilities implements Serializable {
  
 	
 	
-	public List<WordCount> getWordCountList(String uniqueWord,List<Tuple2<Integer, Tuple2<String, String[]>>> pairedDocLabel){
+	
+   /**
+    * Gets the word count list.
+    *
+    * @param uniqueWord the unique word
+    * @param pairedDocLabel the paired doc label
+    * @return the word count list
+    */
+   public List<WordCount> getWordCountList(String uniqueWord,List<Tuple2<Long, Tuple2<String, String[]>>> pairedDocLabel){
      ArrayList<WordCount> wordCountList=new ArrayList<WordCount>(); 
     
-	 for(Tuple2<Integer, Tuple2<String, String[]>> input:pairedDocLabel) {
+	 for(Tuple2<Long, Tuple2<String, String[]>> input:pairedDocLabel) {
 		 
 		 if(input._2()._1.contains(uniqueWord)){
 			 long frequency=0;	
@@ -187,6 +257,21 @@ public class Utilities implements Serializable {
 	 
  }
  
+ /**
+  * Gets the vocab probability.
+  *
+  * @param uniqueWord the unique word
+  * @param ccatWordsDFList the ccat words DF list
+  * @param ecatWordsDFList the ecat words DF list
+  * @param mcatWordsDFList the mcat words DF list
+  * @param gcatWordsDFList the gcat words DF list
+  * @param vocabCount the vocab count
+  * @param ccatWordsDFCount the ccat words DF count
+  * @param ecatWordsDFCount the ecat words DF count
+  * @param mcatWordsDFCount the mcat words DF count
+  * @param gcatWordsDFCount the gcat words DF count
+  * @return the vocab probability
+  */
  public VocabProbability getVocabProbability(String uniqueWord,List<Row> ccatWordsDFList,List<Row> ecatWordsDFList,
 		 List<Row> mcatWordsDFList,List<Row> gcatWordsDFList,
 		 long vocabCount,long ccatWordsDFCount,long ecatWordsDFCount,
@@ -203,26 +288,20 @@ public class Utilities implements Serializable {
 	double wordProbilityMCAT=0.0;
 	boolean gcatFlag=false;
 	double wordProbilityGCAT=0.0;
-	
 	 for(Row row:ccatWordsDFList)
 	 {		 
-		 if(row.getString(1).trim().contains(uniqueWord.trim())){
-			 //System.out.println("Enterd If");
-			 //System.out.println("CCAT "+"row.getString(1):"+row.getString(1)+" row.getLong(0):"+row.getLong(0));
+		 if(row.getString(1).trim().equals(uniqueWord.trim())){
 			 wordProbilityCCAT=calculateProbality(row.getLong(0), ccatWordsDFCount, vocabCount,row.getString(1),"CCAT");
 			 vocabProbability.setProbabilityCCAT(wordProbilityCCAT);
 			 ccatFlag=true;
 		 }
-		 
 	 }
-	 
 		if(!ccatFlag){
 		 wordProbilityCCAT=calculateProbality(0, ccatWordsDFCount, vocabCount,uniqueWord,"CCAT");
 		 vocabProbability.setProbabilityCCAT(wordProbilityCCAT);
 		}
 	 for(Row row:ecatWordsDFList){
 		 if(row.getString(1)!=null&&row.getString(1).equalsIgnoreCase(uniqueWord)){
-			// System.out.println("ECAT"+"row.getString(1):"+row.getString(1)+" row.getLong(0):"+row.getLong(0));
 			 wordProbilityECAT=calculateProbality(row.getLong(0), ecatWordsDFCount, vocabCount,row.getString(1),"ECAT");
 			 vocabProbability.setProbabilityECAT(wordProbilityECAT);
 			 ecatFlag=true;
@@ -235,7 +314,6 @@ public class Utilities implements Serializable {
 	 }
 	 for(Row row:mcatWordsDFList){
 		 if(row.getString(1)!=null&&row.getString(1).equalsIgnoreCase(uniqueWord)){
-		//	 System.out.println("MCAT"+"row.getString(1):"+row.getString(1)+" row.getLong(0):"+row.getLong(0));
 			 wordProbilityMCAT=calculateProbality(row.getLong(0), mcatWordsDFCount, vocabCount,row.getString(1),"MCAT");
 			 vocabProbability.setProbabilityMCAT(wordProbilityMCAT);
 			 mcatFlag=true;
@@ -249,7 +327,6 @@ public class Utilities implements Serializable {
 	 for(Row row:gcatWordsDFList){
 		 if(row.getString(1)!=null&&row.getString(1).equalsIgnoreCase(uniqueWord)){
 		     wordProbilityGCAT=calculateProbality(row.getLong(0), gcatWordsDFCount, vocabCount,row.getString(1),"CCAT");
-			 //System.out.println("GCAT"+"row.getString(1):"+row.getString(1)+" row.getLong(0):"+row.getLong(0));
 			 vocabProbability.setProbabilityGCAT(wordProbilityGCAT);
 			 gcatFlag=true;
 		 }
@@ -263,16 +340,33 @@ public class Utilities implements Serializable {
 	 
  }
  
+ /**
+  * Calculate probality.
+  *
+  * @param numOccurence the num occurence
+  * @param totalNum the total num
+  * @param vocabCount the vocab count
+  * @param word the word
+  * @param label the label
+  * @return the double
+  */
  public double calculateProbality(long numOccurence,long totalNum,long vocabCount,String word,String label ){
 	 double wordUnderLabelProb=Math.log( ((Double.valueOf(numOccurence)+1)/(Double.valueOf(totalNum)+vocabCount)));
-	 
-	 //System.out.println("word: "+word+" label: "+label+"numOccurence:"+numOccurence+ "totalNum: "+totalNum+"vocabCount: "+vocabCount+" wordUnderLabelProb: "+wordUnderLabelProb);
-	 //System.out.println("---------------------------------------------------------------------------------");
 	 return wordUnderLabelProb;
  }
 
 
 
+ /**
+  * Calculate label probability.
+  *
+  * @param docCount the doc count
+  * @param ccatCount the ccat count
+  * @param ecatCount the ecat count
+  * @param mcatCount the mcat count
+  * @param gcatCount the gcat count
+  * @return the label probability
+  */
  public LabelProbability calculateLabelProbability(long docCount,long ccatCount,long ecatCount,long mcatCount,long gcatCount ){
  	 double ccatCountProb=Math.log((Double.valueOf(ccatCount)/docCount));
 	 double ecatCountProb=Math.log((Double.valueOf(ecatCount)/docCount));
@@ -287,7 +381,15 @@ public class Utilities implements Serializable {
 	 
  }
  
- public DocClassifer getDocClassification(Tuple2<Integer, String> document,List<Row> vocabProbList,List<LabelProbability> labelProbList){
+ /**
+  * Gets the doc classification.
+  *
+  * @param document the document
+  * @param vocabProbList the vocab prob list
+  * @param labelProbList the label prob list
+  * @return the doc classification
+  */
+ public DocClassifer getDocClassification(Tuple2<Long, String> document,List<Row> vocabProbList,List<LabelProbability> labelProbList){
 
 	 String[] checkDocument=document._2().split(" "); 
 	  
@@ -295,33 +397,20 @@ public class Utilities implements Serializable {
 	  probabilityECAT=labelProbList.get(0).getEcatLabelProb();
 	  probabilityMCAT=labelProbList.get(0).getMcatLabelProb();
 	  probabilityGCAT=labelProbList.get(0).getGcatLabelProb();  
-	 int i=0;
-
 	 docClassifier=new DocClassifer();
 		 for(String token:checkDocument){
 		  boolean flagExist=false;
-			 //System.out.println("token"+token);
 			 for(Row vocabProb:vocabProbList){	 
 				
-			 if(token.contains(vocabProb.getString(0))){
-			//	 System.out.println("Entered If");
+				 if(token.equals(vocabProb.getString(0))){
 				 probabilityCCAT=probabilityCCAT+vocabProb.getDouble(1);
-				// System.out.println("probabilityCCAT"+probabilityCCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(1));
 				 probabilityECAT=probabilityECAT+vocabProb.getDouble(2);
-				// System.out.println("probabilityECAT"+probabilityECAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(2));
 				 probabilityMCAT=probabilityMCAT+vocabProb.getDouble(3);
-				// System.out.println("probabilityMCAT"+probabilityMCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(3));
 				 probabilityGCAT=probabilityGCAT+vocabProb.getDouble(4);
-				 //System.out.println("probabilityGCAT"+probabilityGCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(4));
 				 flagExist=true;
-			
 			 }	 
-			
-			  
 		 }	
 			 if(!flagExist){
-				 
-			//	 System.out.println("Entered flag"+ ++i);
 				 probabilityCCAT=probabilityCCAT+Math.log(unknownWordProb);
 				 probabilityECAT=probabilityECAT+Math.log(unknownWordProb);
 				 probabilityMCAT=probabilityMCAT+Math.log(unknownWordProb);
@@ -333,14 +422,22 @@ public class Utilities implements Serializable {
 	 probabilities[1]=probabilityECAT;
 	 probabilities[2]=probabilityMCAT;
 	 probabilities[3]=probabilityGCAT;
-	//System.out.println(" probabilities:"+ probabilities[0]+" "+ probabilities[1]+" "+ probabilities[2] +" "+  probabilities[3]);
 	 label=getLabel(probabilities);
 	 docClassifier.setDocId(String.valueOf(document._1()));
 	 docClassifier.setLabel(label);
 	 return docClassifier;
  }
  
- public DocClassifer getDocClassification(Tuple2<Integer, String> document,List<Row> vocabProbList1,List<Row> vocabProbList2,List<LabelProbability> labelProbList){
+ /**
+  * Gets the doc classification.
+  *
+  * @param document the document
+  * @param vocabProbList1 the vocab prob list 1
+  * @param vocabProbList2 the vocab prob list 2
+  * @param labelProbList the label prob list
+  * @return the doc classification
+  */
+ public DocClassifer getDocClassification(Tuple2<Long, String> document,List<Row> vocabProbList1,List<Row> vocabProbList2,List<LabelProbability> labelProbList){
 
 	 String[] checkDocument=document._2().split(" "); 
 	  
@@ -348,52 +445,35 @@ public class Utilities implements Serializable {
 	  probabilityECAT=labelProbList.get(0).getEcatLabelProb();
 	  probabilityMCAT=labelProbList.get(0).getMcatLabelProb();
 	  probabilityGCAT=labelProbList.get(0).getGcatLabelProb();  
-	  int i=0;
 	  boolean checkInList=false;
 	  boolean flagExist=false;
-	 docClassifier=new DocClassifer();
+	  docClassifier=new DocClassifer();
 		 for(String token:checkDocument){
 			 checkInList=false;
-			 //System.out.println("token"+token);
 			 for(Row vocabProb:vocabProbList1){	 
 				 flagExist=false;
-			 if(token.contains(vocabProb.getString(0))){
-			//	 System.out.println("Entered If");
-				 probabilityCCAT=probabilityCCAT+vocabProb.getDouble(1);
-				// System.out.println("probabilityCCAT"+probabilityCCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(1));
-				 probabilityECAT=probabilityECAT+vocabProb.getDouble(2);
-				// System.out.println("probabilityECAT"+probabilityECAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(2));
-				 probabilityMCAT=probabilityMCAT+vocabProb.getDouble(3);
-				// System.out.println("probabilityMCAT"+probabilityMCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(3));
-				 probabilityGCAT=probabilityGCAT+vocabProb.getDouble(4);
-				 //System.out.println("probabilityGCAT"+probabilityGCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(4));
-				 flagExist=true;
-			
-			 }	 
+				 if(token.equals(vocabProb.getString(0))){
+					 probabilityCCAT=probabilityCCAT+vocabProb.getDouble(1);
+					 probabilityECAT=probabilityECAT+vocabProb.getDouble(2);
+					 probabilityMCAT=probabilityMCAT+vocabProb.getDouble(3);
+					 probabilityGCAT=probabilityGCAT+vocabProb.getDouble(4);
+					 flagExist=true;
+				 }	 
 			 }
 			 if(!flagExist){
 				 for(Row vocabProb1:vocabProbList2){	 
 					 checkInList=false;
-					 if(token.contains(vocabProb1.getString(0))){
-					//	 System.out.println("Entered If");
+					 if(token.equals(vocabProb1.getString(0))){
 						 probabilityCCAT=probabilityCCAT+vocabProb1.getDouble(1);
-						// System.out.println("probabilityCCAT"+probabilityCCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(1));
 						 probabilityECAT=probabilityECAT+vocabProb1.getDouble(2);
-						// System.out.println("probabilityECAT"+probabilityECAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(2));
 						 probabilityMCAT=probabilityMCAT+vocabProb1.getDouble(3);
-						// System.out.println("probabilityMCAT"+probabilityMCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(3));
 						 probabilityGCAT=probabilityGCAT+vocabProb1.getDouble(4);
-						 //System.out.println("probabilityGCAT"+probabilityGCAT+"vocabProb.getDouble(1)"+vocabProb.getDouble(4));
 						 checkInList=true;
-					
 					 }	 
 			 }
 			
-			  
 		 }	
 			 if(!checkInList){
-				 
-			//	 System.out.println("Entered flag"+ ++i);
 				 probabilityCCAT=probabilityCCAT+Math.log(unknownWordProb);
 				 probabilityECAT=probabilityECAT+Math.log(unknownWordProb);
 				 probabilityMCAT=probabilityMCAT+Math.log(unknownWordProb);
@@ -405,7 +485,7 @@ public class Utilities implements Serializable {
 	 probabilities[1]=probabilityECAT;
 	 probabilities[2]=probabilityMCAT;
 	 probabilities[3]=probabilityGCAT;
-	//System.out.println(" probabilities:"+ probabilities[0]+" "+ probabilities[1]+" "+ probabilities[2] +" "+  probabilities[3]);
+    
 	 label=getLabel(probabilities);
 	 docClassifier.setDocId(String.valueOf(document._1()));
 	 docClassifier.setLabel(label);
@@ -413,6 +493,12 @@ public class Utilities implements Serializable {
  }
 
  
+ /**
+  * Gets the label.
+  *
+  * @param probabilities the probabilities
+  * @return the label
+  */
  public String getLabel(double[] probabilities){
 	 int maxPosition=0;
 	 String label=null;
@@ -422,7 +508,6 @@ public class Utilities implements Serializable {
 			 maxPosition=i;
 		 }
 	}
-//	 System.out.println("maxposition:"+maxPosition);
 	 if(maxPosition==0)
 		 label= "CCAT";
 	 if(maxPosition==1)
@@ -431,7 +516,7 @@ public class Utilities implements Serializable {
 		 label= "MCAT";
 	 if(maxPosition==3)
 		 label= "GCAT";
-	// System.out.println(label);
+	
 	 return label;
  }
  
