@@ -1,14 +1,14 @@
 /*
  * This is main class for Document Classification. 
  * The program works in two different modes (LEARNING and TESTING) that are specified during the execution of the program though command line arguments.
-LEARNING:-takes 4 command line arguments:-
+LEARNING:-takes 5 command line arguments:-
 args[0]- path of the trainer file
 args[1]- path of the classifer file (Classifed lables)
 args[2]- path to store the vocab probability file
 args[3]- path to store the lable probability file
 args[4]- LEARNING 
 
-TESTING:-takes 4 command line arguments:- 
+TESTING:-takes 5 command line arguments:- 
 args[0]- path of the test file
 args[1]- path of vocab probablity file that was generated using the LEARNING mode
 args[2]- path of lable probablity file that was generated using the LEARNING mode
