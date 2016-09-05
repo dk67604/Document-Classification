@@ -7,7 +7,7 @@ Team Name: DAYS
 
 Team Members:
 - Yash Shrivastava
-- Dharamendra Prajapati
+- Dharamendra Kumar
 - Sharmin Pathan
 
 Technologies Used:
